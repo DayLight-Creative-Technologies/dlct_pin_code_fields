@@ -45,7 +45,7 @@ class _PinCodeDemoPageState extends State<PinCodeDemoPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // PIN Code Text Field with different configurations
+            // Standard PIN Code Text Field
             Text(
               'Standard PIN Code (6 digits)',
               style: Theme.of(context).textTheme.titleMedium,
@@ -53,8 +53,11 @@ class _PinCodeDemoPageState extends State<PinCodeDemoPage> {
             ),
             const SizedBox(height: 10),
             PinCodeTextField(
-              length: 6,
-              showContextMenu: _showContextMenu,
+              config: PinCodeConfig(
+                length: 6,
+                showContextMenu: _showContextMenu,
+                enabled: true,
+              ),
               onChanged: (value) {
                 setState(() {
                   _pinCode = value;
@@ -65,6 +68,10 @@ class _PinCodeDemoPageState extends State<PinCodeDemoPage> {
                   SnackBar(content: Text('PIN Completed: $value')),
                 );
               },
+              pinBoxDecoration: PinBoxDecoration.outlinedDecoration(
+                borderColor: Colors.blue,
+                borderWidth: 2,
+              ),
             ),
             const SizedBox(height: 20),
 
@@ -76,23 +83,10 @@ class _PinCodeDemoPageState extends State<PinCodeDemoPage> {
             ),
             const SizedBox(height: 10),
             PinCodeTextField(
-              length: 4,
-              obscureText: _obscureText,
-              showContextMenu: _showContextMenu,
-              // Optional: Custom context menu builder
-              contextMenuBuilder: _showContextMenu 
-                ? (context, editableTextState) {
-                    return AdaptiveTextSelectionToolbar.editableText(
-                      editableTextState: editableTextState,
-                    );
-                  } 
-                : null,
-              pinBoxDecoration: BoxDecoration(
-                border: Border.all(
-                  color: Colors.blue,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(12),
+              config: PinCodeConfig(
+                length: 4,
+                obscureText: _obscureText,
+                showContextMenu: _showContextMenu,
               ),
               textStyle: const TextStyle(
                 fontSize: 24,
@@ -101,6 +95,9 @@ class _PinCodeDemoPageState extends State<PinCodeDemoPage> {
               cursorColor: Colors.green,
               cursorWidth: 3,
               cursorHeight: 30,
+              pinBoxDecoration: PinBoxDecoration.filledDecoration(
+                fillColor: Colors.grey.shade200,
+              ),
             ),
             const SizedBox(height: 20),
 

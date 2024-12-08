@@ -1,78 +1,104 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'pin_box_decoration.dart';
+import 'pin_code_config.dart';
+
+/// A customizable PIN code text field widget
 class PinCodeTextField extends StatefulWidget {
-  final int length;
-  final void Function(String)? onChanged;
-  final void Function(String)? onCompleted;
+  /// Configuration for the PIN code text field
+  final PinCodeConfig config;
+
+  /// Callback when the PIN code value changes
+  final ValueChanged<String>? onChanged;
+
+  /// Callback when the PIN code is completed
+  final ValueChanged<String>? onCompleted;
+
+  /// Custom controller for the text field
   final TextEditingController? controller;
-  final bool obscureText;
-  final BoxDecoration? pinBoxDecoration;
-  final TextStyle? textStyle;
-  final Color? cursorColor;
-  final double? cursorHeight;
-  final double? cursorWidth;
-  final EdgeInsets? padding;
-  final bool autofocus;
+
+  /// Custom focus node for the text field
   final FocusNode? focusNode;
-  final bool enabled;
-  final TextInputType keyboardType;
-  final List<TextInputFormatter>? inputFormatters;
-  final bool showContextMenu;
+
+  /// Custom text style for the PIN code digits
+  final TextStyle? textStyle;
+
+  /// Decoration for the PIN code boxes
+  final BoxDecoration? pinBoxDecoration;
+
+  /// Cursor color
+  final Color? cursorColor;
+
+  /// Cursor width
+  final double? cursorWidth;
+
+  /// Cursor height
+  final double? cursorHeight;
+
+  /// Context menu builder
   final Widget Function(BuildContext, EditableTextState)? contextMenuBuilder;
 
   const PinCodeTextField({
-    Key? key,
-    required this.length,
+    super.key,
+    PinCodeConfig? config,
     this.onChanged,
     this.onCompleted,
     this.controller,
-    this.obscureText = false,
-    this.pinBoxDecoration,
-    this.textStyle,
-    this.cursorColor,
-    this.cursorHeight,
-    this.cursorWidth,
-    this.padding,
-    this.autofocus = false,
     this.focusNode,
-    this.enabled = true,
-    this.keyboardType = TextInputType.number,
-    this.inputFormatters,
-    this.showContextMenu = true,
+    this.textStyle,
+    this.pinBoxDecoration,
+    this.cursorColor,
+    this.cursorWidth,
+    this.cursorHeight,
     this.contextMenuBuilder,
-  }) : super(key: key);
+  }) : config = config ?? const PinCodeConfig();
 
   @override
   State<PinCodeTextField> createState() => _PinCodeTextFieldState();
 }
 
 class _PinCodeTextFieldState extends State<PinCodeTextField> {
+  /// Internal controller for the text field
   late TextEditingController _controller;
+
+  /// Internal focus node for the text field
   late FocusNode _focusNode;
-  late List<String> _pin;
+
+  /// List to track individual pin box values
+  late List<String> _pinValues;
+
+  /// Key for the editable text widget
   final GlobalKey _editableTextKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
+
+    // Initialize controller and focus node
     _controller = widget.controller ?? TextEditingController();
     _focusNode = widget.focusNode ?? FocusNode();
-    _pin = List.filled(widget.length, '');
-    
+
+    // Initialize pin values
+    _pinValues = List.filled(widget.config.length, '');
+
+    // Add listener to update pin values
     _controller.addListener(_updatePinState);
   }
 
+  /// Updates the state of pin values when text changes
   void _updatePinState() {
     setState(() {
+      // Update pin values based on current text
       final text = _controller.text;
-      _pin = List.filled(widget.length, '');
-      for (int i = 0; i < text.length && i < widget.length; i++) {
-        _pin[i] = text[i];
+      _pinValues = List.filled(widget.config.length, '');
+      for (int i = 0; i < text.length && i < widget.config.length; i++) {
+        _pinValues[i] = text[i];
       }
     });
 
-    if (_controller.text.length == widget.length) {
+    // Trigger callbacks
+    if (_controller.text.length == widget.config.length) {
       widget.onCompleted?.call(_controller.text);
     }
     widget.onChanged?.call(_controller.text);
@@ -80,6 +106,7 @@ class _PinCodeTextFieldState extends State<PinCodeTextField> {
 
   @override
   void dispose() {
+    // Dispose controllers if not provided externally
     if (widget.controller == null) {
       _controller.dispose();
     }
@@ -89,8 +116,11 @@ class _PinCodeTextFieldState extends State<PinCodeTextField> {
     super.dispose();
   }
 
-  // Default context menu builder when no custom builder is provided
-  Widget _defaultContextMenuBuilder(BuildContext context, EditableTextState editableTextState) {
+  /// Default context menu builder
+  Widget _defaultContextMenuBuilder(
+    BuildContext context,
+    EditableTextState editableTextState,
+  ) {
     return AdaptiveTextSelectionToolbar.editableText(
       editableTextState: editableTextState,
     );
@@ -104,13 +134,16 @@ class _PinCodeTextFieldState extends State<PinCodeTextField> {
       },
       child: Stack(
         children: [
+          // Row of PIN code boxes
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
-              widget.length,
+              widget.config.length,
               (index) => _buildPinBox(index),
             ),
           ),
+
+          // Invisible EditableText for input
           Positioned.fill(
             child: EditableText(
               key: _editableTextKey,
@@ -119,18 +152,15 @@ class _PinCodeTextFieldState extends State<PinCodeTextField> {
               style: const TextStyle(color: Colors.transparent, fontSize: 0),
               cursorColor: Colors.transparent,
               backgroundCursorColor: Colors.transparent,
-              keyboardType: widget.keyboardType,
-              inputFormatters: [
-                LengthLimitingTextInputFormatter(widget.length),
-                ...?widget.inputFormatters,
-              ],
-              autofocus: widget.autofocus,
-              readOnly: false,
-              contextMenuBuilder: widget.showContextMenu
+              keyboardType: widget.config.keyboardType,
+              inputFormatters: widget.config.getInputFormatters(),
+              autofocus: false,
+              readOnly: !widget.config.enabled,
+              contextMenuBuilder: widget.config.showContextMenu
                   ? (widget.contextMenuBuilder ?? _defaultContextMenuBuilder)
                   : null,
               onChanged: (value) {
-                // This is handled by the controller listener
+                // Handled by controller listener
               },
             ),
           ),
@@ -139,6 +169,7 @@ class _PinCodeTextFieldState extends State<PinCodeTextField> {
     );
   }
 
+  /// Builds individual PIN code box
   Widget _buildPinBox(int index) {
     final isFocused = _focusNode.hasFocus && index == _controller.text.length;
     final hasValue = index < _controller.text.length;
@@ -149,22 +180,21 @@ class _PinCodeTextFieldState extends State<PinCodeTextField> {
       margin: const EdgeInsets.symmetric(horizontal: 4),
       alignment: Alignment.center,
       decoration: widget.pinBoxDecoration ??
-          BoxDecoration(
-            border: Border.all(
-              color: isFocused ? Theme.of(context).primaryColor : Colors.grey,
-              width: 2,
-            ),
-            borderRadius: BorderRadius.circular(8),
+          PinBoxDecoration.defaultDecoration(
+            context,
+            isFocused: isFocused,
           ),
-      padding: widget.padding ?? const EdgeInsets.all(8),
       child: Stack(
         alignment: Alignment.center,
         children: [
+          // PIN code digit
           Text(
-            widget.obscureText && hasValue ? '•' : _pin[index],
-            style: widget.textStyle ??
-                Theme.of(context).textTheme.headlineSmall,
+            widget.config.obscureText && hasValue ? '•' : _pinValues[index],
+            style:
+                widget.textStyle ?? Theme.of(context).textTheme.headlineSmall,
           ),
+
+          // Cursor indicator
           if (isFocused)
             Container(
               width: widget.cursorWidth ?? 2,
