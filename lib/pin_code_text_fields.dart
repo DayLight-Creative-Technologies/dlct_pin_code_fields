@@ -14,6 +14,9 @@ part 'src/models/pin_theme.dart';
 part 'src/utils/enums.dart';
 part 'src/widgets/cursor_painter.dart'; // Keep import for potential future use
 part 'src/widgets/gradiented.dart';
+part 'src/widgets/pin_code_cell.dart';
+part 'src/widgets/pin_code_field_row.dart';
+part 'src/widgets/underlying_editable_text.dart';
 
 // Forward declare the state class
 part 'src/pin_code_text_fields_state.dart';
