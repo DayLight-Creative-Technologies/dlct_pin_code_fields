@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -34,6 +32,7 @@ class MaterialPinField extends StatefulWidget {
     this.theme = const MaterialPinTheme(),
     // Controller
     this.pinController,
+    this.initialValue,
     // Input behavior
     this.keyboardType = TextInputType.number,
     this.textInputAction = TextInputAction.done,
@@ -61,8 +60,6 @@ class MaterialPinField extends StatefulWidget {
     this.onSubmitted,
     this.onEditingComplete,
     this.onTap,
-    // Error
-    this.errorTrigger,
     // Hint
     this.hintCharacter,
     this.hintStyle,
@@ -85,6 +82,11 @@ class MaterialPinField extends StatefulWidget {
   /// Provides programmatic access to text, error state, and focus.
   /// If not provided, an internal controller is created.
   final PinInputController? pinController;
+
+  /// Initial value for the PIN input.
+  ///
+  /// If provided, the PIN field will start with this value pre-filled.
+  final String? initialValue;
 
   /// The type of keyboard to display.
   final TextInputType keyboardType;
@@ -161,9 +163,6 @@ class MaterialPinField extends StatefulWidget {
   /// Called when the widget is tapped.
   final VoidCallback? onTap;
 
-  /// Stream to trigger error state and shake animation.
-  final Stream<void>? errorTrigger;
-
   /// Hint character to show in empty cells.
   final String? hintCharacter;
 
@@ -191,18 +190,80 @@ class MaterialPinField extends StatefulWidget {
 class _MaterialPinFieldState extends State<MaterialPinField> {
   final GlobalKey<ErrorShakeState> _shakeKey = GlobalKey<ErrorShakeState>();
 
+  PinInputController? _internalController;
+  bool _ownsController = false;
+  bool _previousHasError = false;
+
+  PinInputController get _effectiveController {
+    return widget.pinController ?? _internalController!;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initController();
+  }
+
+  void _initController() {
+    if (widget.pinController == null) {
+      _internalController = PinInputController(text: widget.initialValue);
+      _ownsController = true;
+    } else {
+      _ownsController = false;
+      // Set initial value on external controller if provided and controller is empty
+      if (widget.initialValue != null &&
+          widget.pinController!.text.isEmpty) {
+        widget.pinController!.text = widget.initialValue!;
+      }
+    }
+    _effectiveController.addListener(_onControllerChanged);
+    _previousHasError = _effectiveController.hasError;
+  }
+
+  void _onControllerChanged() {
+    // Trigger shake when error state transitions from false to true
+    final currentHasError = _effectiveController.hasError;
+    if (currentHasError && !_previousHasError) {
+      _shakeKey.currentState?.shake();
+    }
+    _previousHasError = currentHasError;
+  }
+
+  @override
+  void didUpdateWidget(MaterialPinField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Handle controller change
+    if (widget.pinController != oldWidget.pinController) {
+      _effectiveController.removeListener(_onControllerChanged);
+      if (_ownsController) {
+        _internalController?.dispose();
+      }
+      _initController();
+    }
+  }
+
+  @override
+  void dispose() {
+    _effectiveController.removeListener(_onControllerChanged);
+    if (_ownsController) {
+      _internalController?.dispose();
+    }
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final resolvedTheme = widget.theme.resolve(context);
 
     return ErrorShake(
       key: _shakeKey,
-      trigger: widget.errorTrigger,
       duration: resolvedTheme.errorAnimationDuration,
       enabled: resolvedTheme.enableErrorShake,
       child: PinInput(
         length: widget.length,
-        pinController: widget.pinController,
+        pinController: _effectiveController,
+        initialValue: widget.initialValue,
         keyboardType: widget.keyboardType,
         textInputAction: widget.textInputAction,
         inputFormatters: widget.inputFormatters,
@@ -225,7 +286,6 @@ class _MaterialPinFieldState extends State<MaterialPinField> {
         onSubmitted: widget.onSubmitted,
         onEditingComplete: widget.onEditingComplete,
         onTap: widget.onTap,
-        errorTrigger: widget.errorTrigger,
         keyboardAppearance: widget.keyboardAppearance,
         scrollPadding: widget.scrollPadding,
         builder: (context, cells) {

@@ -144,27 +144,36 @@ class PinInputController extends ChangeNotifier {
     _focusNode.unfocus();
   }
 
-  // ============== Internal (used by PinInput widget) ==============
+  // ============== Internal API ==============
+  //
+  // These methods are used internally by PinInput and MaterialPinField.
+  // Do not call them directly in your application code.
 
-  /// Attaches the controller to the widget.
+  /// Attaches the controller to a PIN input widget.
   ///
-  /// **Internal**: Called by [PinInput]. Do not call directly.
+  /// @nodoc
+  /// **Internal use only.** Called automatically by [PinInput].
+  /// Calling this directly may cause unexpected behavior.
   void attach({required VoidCallback onErrorTriggered}) {
     _onErrorTriggered = onErrorTriggered;
     _isAttached = true;
   }
 
-  /// Detaches the controller from the widget.
+  /// Detaches the controller from a PIN input widget.
   ///
-  /// **Internal**: Called by [PinInput]. Do not call directly.
+  /// @nodoc
+  /// **Internal use only.** Called automatically by [PinInput].
+  /// Calling this directly may cause unexpected behavior.
   void detach() {
     _onErrorTriggered = null;
     _isAttached = false;
   }
 
-  /// Updates error state from widget (e.g., when auto-clearing on input).
+  /// Updates error state from the widget.
   ///
-  /// **Internal**: Called by [PinInput]. Do not call directly.
+  /// @nodoc
+  /// **Internal use only.** Called automatically by [PinInput] when
+  /// auto-clearing error on input. Use [triggerError] and [clearError] instead.
   void setErrorState(bool hasError) {
     if (_hasError != hasError) {
       _hasError = hasError;

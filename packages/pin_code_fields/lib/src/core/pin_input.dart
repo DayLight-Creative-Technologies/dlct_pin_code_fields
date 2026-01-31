@@ -43,6 +43,7 @@ class PinInput extends StatefulWidget {
     required this.builder,
     // Controller
     this.pinController,
+    this.initialValue,
     // Input behavior
     this.keyboardType = TextInputType.number,
     this.textInputAction = TextInputAction.done,
@@ -70,8 +71,6 @@ class PinInput extends StatefulWidget {
     this.onSubmitted,
     this.onEditingComplete,
     this.onTap,
-    // Error
-    this.errorTrigger,
     // Keyboard
     this.keyboardAppearance,
     this.scrollPadding = const EdgeInsets.all(20),
@@ -99,6 +98,13 @@ class PinInput extends StatefulWidget {
   /// Provides programmatic access to text, error state, and focus.
   /// If not provided, an internal controller will be created and managed.
   final PinInputController? pinController;
+
+  /// Initial value for the PIN input.
+  ///
+  /// If provided, the PIN field will start with this value pre-filled.
+  /// This is a convenience parameter - you can also set initial value
+  /// via the controller: `PinInputController(text: '1234')`.
+  final String? initialValue;
 
   /// The type of keyboard to display.
   final TextInputType keyboardType;
@@ -166,11 +172,6 @@ class PinInput extends StatefulWidget {
   /// Called when the widget is tapped.
   final VoidCallback? onTap;
 
-  /// Stream to trigger error state.
-  ///
-  /// Emit `null` to clear error state, or emit any value to set error state.
-  final Stream<void>? errorTrigger;
-
   /// The brightness of the keyboard.
   final Brightness? keyboardAppearance;
 
@@ -229,9 +230,6 @@ class _PinInputState extends State<PinInput>
   Timer? _blinkTimer;
   bool _isBlinking = false;
 
-  // Error subscription
-  StreamSubscription<void>? _errorSubscription;
-
   PinInputController get _effectivePinController => _pinController!;
   TextEditingController get _effectiveController =>
       _effectivePinController.textController;
@@ -244,7 +242,6 @@ class _PinInputState extends State<PinInput>
     _effectiveController.addListener(_onTextChanged);
     _effectiveFocusNode.addListener(_onFocusChanged);
     _gestureBuilder = TextSelectionGestureDetectorBuilder(delegate: this);
-    _subscribeToErrors();
     _handleAutoFocus();
   }
 
@@ -253,8 +250,15 @@ class _PinInputState extends State<PinInput>
       _pinController = widget.pinController;
       _ownsController = false;
     } else {
-      _pinController = PinInputController();
+      _pinController = PinInputController(text: widget.initialValue);
       _ownsController = true;
+    }
+
+    // Set initial value on external controller if provided and controller is empty
+    if (widget.initialValue != null &&
+        !_ownsController &&
+        _effectiveController.text.isEmpty) {
+      _effectiveController.text = widget.initialValue!;
     }
 
     // Attach for error triggering
@@ -287,19 +291,6 @@ class _PinInputState extends State<PinInput>
   void _triggerErrorAnimation() {
     if (mounted) {
       setState(() => _isError = true);
-    }
-  }
-
-  void _subscribeToErrors() {
-    _errorSubscription?.cancel();
-    if (widget.errorTrigger != null) {
-      _errorSubscription = widget.errorTrigger!.listen((_) {
-        if (mounted) {
-          _isError = true;
-          _effectivePinController.setErrorState(true);
-          setState(() {});
-        }
-      });
     }
   }
 
@@ -347,18 +338,12 @@ class _PinInputState extends State<PinInput>
     if (widget.length != oldWidget.length) {
       _onTextChanged();
     }
-
-    // Error stream change
-    if (widget.errorTrigger != oldWidget.errorTrigger) {
-      _subscribeToErrors();
-    }
   }
 
   @override
   void dispose() {
     _effectivePinController.removeListener(_onPinControllerChanged);
     _effectivePinController.detach();
-    _errorSubscription?.cancel();
     _blinkTimer?.cancel();
     _effectiveController.removeListener(_onTextChanged);
     _effectiveFocusNode.removeListener(_onFocusChanged);

@@ -194,7 +194,7 @@ This document lists all features from the existing `pin_code_fields` package (v9
 
 | Parameter | Type | Default | Description | New Package Status |
 |-----------|------|---------|-------------|-------------------|
-| `errorAnimationController` | `StreamController<ErrorAnimationType>?` | `null` | External error trigger | ✅ Implemented (as `errorTrigger: Stream<void>`) |
+| `errorAnimationController` | `StreamController<ErrorAnimationType>?` | `null` | External error trigger | ✅ Implemented (via `PinInputController.triggerError()`) |
 | `errorAnimationDuration` | `int` | `500` | Shake animation duration (ms) | ✅ Implemented |
 
 ### ErrorAnimationType Enum
