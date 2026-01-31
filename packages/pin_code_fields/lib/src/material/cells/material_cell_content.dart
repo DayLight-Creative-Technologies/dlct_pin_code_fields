@@ -49,6 +49,7 @@ class MaterialCellContent extends StatelessWidget {
       transitionBuilder: getEntryAnimationTransitionBuilder(
         theme.entryAnimation,
         theme.animationCurve,
+        customBuilder: theme.customEntryAnimationBuilder,
       ),
       child: content,
     );

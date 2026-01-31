@@ -28,6 +28,11 @@ enum MaterialPinAnimation {
 
   /// No animation.
   none,
+
+  /// Custom animation provided via [MaterialPinTheme.customEntryAnimationBuilder].
+  ///
+  /// When using this value, you must provide a [customEntryAnimationBuilder].
+  custom,
 }
 
 /// Theme configuration for Material Design PIN fields.
@@ -82,12 +87,17 @@ class MaterialPinTheme {
     this.focusedBoxShadows,
     // Animations
     this.entryAnimation = MaterialPinAnimation.scale,
+    this.customEntryAnimationBuilder,
     this.animationDuration = const Duration(milliseconds: 150),
     this.animationCurve = Curves.easeOut,
     // Error animation
     this.errorAnimationDuration = const Duration(milliseconds: 500),
     this.enableErrorShake = true,
-  });
+  }) : assert(
+          entryAnimation != MaterialPinAnimation.custom ||
+              customEntryAnimationBuilder != null,
+          'customEntryAnimationBuilder must be provided when entryAnimation is MaterialPinAnimation.custom',
+        );
 
   /// The shape of PIN cells.
   final MaterialPinShape shape;
@@ -175,6 +185,25 @@ class MaterialPinTheme {
   /// Entry animation type.
   final MaterialPinAnimation entryAnimation;
 
+  /// Custom entry animation builder.
+  ///
+  /// When [entryAnimation] is set to [MaterialPinAnimation.custom], this builder
+  /// is used to create the transition animation for PIN characters.
+  ///
+  /// Example:
+  /// ```dart
+  /// MaterialPinTheme(
+  ///   entryAnimation: MaterialPinAnimation.custom,
+  ///   customEntryAnimationBuilder: (child, animation) {
+  ///     return RotationTransition(
+  ///       turns: animation,
+  ///       child: FadeTransition(opacity: animation, child: child),
+  ///     );
+  ///   },
+  /// )
+  /// ```
+  final AnimatedSwitcherTransitionBuilder? customEntryAnimationBuilder;
+
   /// Duration for animations.
   final Duration animationDuration;
 
@@ -217,6 +246,7 @@ class MaterialPinTheme {
     List<BoxShadow>? boxShadows,
     List<BoxShadow>? focusedBoxShadows,
     MaterialPinAnimation? entryAnimation,
+    AnimatedSwitcherTransitionBuilder? customEntryAnimationBuilder,
     Duration? animationDuration,
     Curve? animationCurve,
     Duration? errorAnimationDuration,
@@ -251,6 +281,8 @@ class MaterialPinTheme {
       boxShadows: boxShadows ?? this.boxShadows,
       focusedBoxShadows: focusedBoxShadows ?? this.focusedBoxShadows,
       entryAnimation: entryAnimation ?? this.entryAnimation,
+      customEntryAnimationBuilder:
+          customEntryAnimationBuilder ?? this.customEntryAnimationBuilder,
       animationDuration: animationDuration ?? this.animationDuration,
       animationCurve: animationCurve ?? this.animationCurve,
       errorAnimationDuration:
@@ -295,6 +327,7 @@ class MaterialPinTheme {
       boxShadows: boxShadows,
       focusedBoxShadows: focusedBoxShadows,
       entryAnimation: entryAnimation,
+      customEntryAnimationBuilder: customEntryAnimationBuilder,
       animationDuration: animationDuration,
       animationCurve: animationCurve,
       errorAnimationDuration: errorAnimationDuration,
@@ -338,6 +371,7 @@ class MaterialPinThemeData {
     required this.boxShadows,
     required this.focusedBoxShadows,
     required this.entryAnimation,
+    required this.customEntryAnimationBuilder,
     required this.animationDuration,
     required this.animationCurve,
     required this.errorAnimationDuration,
@@ -372,6 +406,7 @@ class MaterialPinThemeData {
   final List<BoxShadow>? boxShadows;
   final List<BoxShadow>? focusedBoxShadows;
   final MaterialPinAnimation entryAnimation;
+  final AnimatedSwitcherTransitionBuilder? customEntryAnimationBuilder;
   final Duration animationDuration;
   final Curve animationCurve;
   final Duration errorAnimationDuration;
