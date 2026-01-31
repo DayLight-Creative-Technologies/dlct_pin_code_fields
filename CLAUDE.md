@@ -4,270 +4,359 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**pin_code_fields** is a Flutter package for creating highly customizable PIN code and OTP input fields with native-like behavior. The package is at version 9.0.0-dev.1 and has recently undergone a major refactoring.
+**pin_code_fields** is a Flutter package for creating highly customizable PIN code and OTP input fields. Version 9.0.0 introduces a **headless architecture** with separate core logic and Material Design implementation.
 
 - **Repository**: https://github.com/adar2378/pin_code_fields
-- **Min SDK**: Dart 3.5.4, Flutter 1.17.0+
+- **Min SDK**: Dart 3.5.0, Flutter 3.0.0+
 - **Dependencies**: Only Flutter SDK (minimal dependencies approach)
+
+## Monorepo Structure
+
+This project uses **melos** for monorepo management:
+
+```
+pin_code_fields/                    # Repository root
+├── melos.yaml                      # Melos configuration
+├── pubspec.yaml                    # Workspace root (not publishable)
+├── CLAUDE.md                       # This file
+├── docs/
+│   └── FEATURE_COMPARISON.md       # Feature tracking document
+└── packages/
+    └── pin_code_fields/            # Main publishable package
+        ├── lib/
+        │   ├── pin_code_fields.dart    # Single export file
+        │   └── src/
+        │       ├── core/               # Headless input engine
+        │       └── material/           # Material Design implementation
+        ├── test/
+        ├── example/
+        ├── pubspec.yaml
+        ├── README.md
+        ├── CHANGELOG.md
+        └── LICENSE
+```
 
 ## Development Commands
 
-### Testing
+### With Melos (Recommended)
+
 ```bash
+# Bootstrap workspace (install dependencies, link packages)
+melos bootstrap
+
+# Run tests
+melos test
+
+# Run analyzer
+melos analyze
+
+# Format code
+melos format
+```
+
+### Direct Flutter Commands
+
+```bash
+# From packages/pin_code_fields/
 flutter test
+flutter analyze
+flutter pub publish --dry-run
 ```
 
 ### Running Example
+
 ```bash
-cd example
+cd packages/pin_code_fields/example
 flutter run
-```
-
-### Linting
-```bash
-flutter analyze
-```
-Uses `flutter_lints: ^4.0.0` with configuration in `analysis_options.yaml`
-
-### Publishing (Dry Run)
-```bash
-flutter pub get
-flutter pub publish --dry-run
 ```
 
 ## Architecture
 
-The package uses a **three-layer architecture** with strict separation of concerns:
+The package uses a **headless architecture** with two layers:
 
-### Layer 1: Visual Rendering
-- `_PinCodeFieldRow`: Container for all PIN cells
-- `_PinCodeCell`: Individual cell wrapper with AnimatedContainer
-- `_PinCodeCellContent`: Stateful widget handling actual content rendering (text, cursor, obscuring)
-- **Responsibility**: Pure visual representation with animations, no input handling
+### Layer 1: Core (`src/core/`)
 
-### Layer 2: Input Handling
-- `_UnderlyingEditableText`: Wrapper around Flutter's `EditableText`
-- Styled to be **completely invisible** (transparent text, hidden cursor)
-- Positioned behind visual cells in a Stack to capture keyboard input
-- **Responsibility**: All keyboard input, text formatting, length limiting
+Headless input engine with zero visual opinion. Provides:
 
-### Layer 3: Gesture Handling
-- `TextSelectionGestureDetectorBuilder` wraps the entire widget tree
-- Handles selection gestures, context menu (paste), cut/copy operations
-- Platform-adaptive behavior (iOS, Android, Windows, macOS, Linux)
-- **Responsibility**: User interactions beyond typing (long press for paste, etc.)
+- **`PinInput`**: Main headless widget that captures input and provides cell data via builder
+- **`PinCellData`**: Immutable data model describing each cell's state
+- **`PinInputController`**: Unified controller for text, focus, and error management
+- **`PinInputScope`**: InheritedWidget for dependency injection
+- **`PinInputFormField`**: Form integration wrapper
 
-### File Organization
-
-The codebase uses `part`/`part of` pattern for logical file organization:
-
+Key files:
 ```
-lib/
-├── pin_code_fields.dart        # Main library file (imports all parts)
-└── src/
-    ├── pin_code_fields_state.dart           # _PinCodeTextFieldState
-    ├── models/
-    │   └── pin_theme.dart                   # PinTheme configuration model
-    ├── utils/
-    │   └── enums.dart                       # AnimationType, HapticFeedbackTypes, etc.
-    └── widgets/
-        ├── pin_code_field_row.dart          # _PinCodeFieldRow
-        ├── pin_code_cell.dart               # _PinCodeCell, _PinCodeCellContent
-        ├── underlying_editable_text.dart    # _UnderlyingEditableText
-        ├── gradiented.dart                  # Gradient text wrapper
-        └── cursor_painter.dart              # Custom cursor painter
+src/core/
+├── pin_input.dart              # Main headless widget
+├── pin_cell_data.dart          # Cell state data model
+├── pin_input_controller.dart   # Unified controller
+├── pin_input_scope.dart        # InheritedWidget for DI
+├── haptics.dart                # Haptic feedback utilities
+├── form/
+│   └── pin_input_form_field.dart
+├── input_capture/
+│   └── invisible_text_field.dart   # Hidden EditableText
+└── gestures/
+    ├── selection_gesture_builder.dart
+    └── context_menu_builder.dart
 ```
 
-## Critical Design Patterns
+### Layer 2: Material (`src/material/`)
 
-### 1. TextSelectionGestureDetectorBuilderDelegate Implementation
+Ready-to-use Material Design implementation built on core:
 
-The state class implements this delegate to enable native text selection behavior:
+- **`MaterialPinField`**: Main Material widget
+- **`MaterialPinTheme`**: Theme configuration with ColorScheme resolution
+- **`MaterialPinCell`**: Individual cell with animations
+- **Shape decorations**: Outlined, filled, underlined, circle
+
+Key files:
+```
+src/material/
+├── material_pin_field.dart     # Main Material widget
+├── theme/
+│   └── material_pin_theme.dart # Theme + resolved data
+├── cells/
+│   ├── material_pin_cell.dart
+│   └── material_cell_content.dart
+├── shapes/
+│   ├── outlined_decoration.dart
+│   ├── filled_decoration.dart
+│   ├── underlined_decoration.dart
+│   └── circle_decoration.dart
+├── animations/
+│   ├── entry_animations.dart
+│   ├── cursor_blink.dart
+│   └── error_shake.dart
+└── layout/
+    └── material_pin_row.dart
+```
+
+## Key Components
+
+### PinCellData
+
+Immutable data model for each cell:
 
 ```dart
-class _PinCodeTextFieldState extends State<PinCodeTextField>
-    with TickerProviderStateMixin
+PinCellData(
+  index: 0,           // Cell position (0-based)
+  character: '1',     // Entered character (null if empty)
+  isFilled: true,     // Has a character
+  isFocused: false,   // Is the current input position
+  isError: false,     // Error state active
+  isDisabled: false,  // Read-only state
+  wasJustEntered: false,  // Character typed this frame
+  wasJustRemoved: false,  // Character deleted this frame
+  isBlinking: false,  // Showing real char before obscure
+)
+```
+
+### PinInputController
+
+Unified controller replacing separate TextEditingController, FocusNode, and error stream:
+
+```dart
+final controller = PinInputController();
+
+// Text control
+controller.setText('1234');
+controller.clear();
+print(controller.text);
+
+// Error control
+controller.triggerError();  // Triggers shake + error state
+controller.clearError();    // Clears error state
+print(controller.hasError);
+
+// Focus control
+controller.requestFocus();
+controller.unfocus();
+print(controller.hasFocus);
+
+// Access underlying controllers
+controller.textController;  // TextEditingController
+controller.focusNode;       // FocusNode
+```
+
+### MaterialPinTheme
+
+Theme with automatic ColorScheme resolution:
+
+```dart
+MaterialPinTheme(
+  shape: MaterialPinShape.outlined,
+  cellSize: Size(56, 64),
+  spacing: 8,
+  borderRadius: BorderRadius.circular(12),
+  // Colors (null = resolve from ColorScheme)
+  borderColor: null,
+  focusedBorderColor: null,
+  errorColor: null,
+  // Animation
+  entryAnimation: MaterialPinAnimation.scale,
+  animationDuration: Duration(milliseconds: 150),
+)
+```
+
+## Design Patterns
+
+### 1. Headless UI Pattern
+
+Core provides data, consumer provides UI:
+
+```dart
+PinInput(
+  length: 4,
+  builder: (context, cells) {
+    // Full control over rendering
+    return Row(
+      children: cells.map((cell) => MyCustomCell(cell)).toList(),
+    );
+  },
+)
+```
+
+### 2. TextSelectionGestureDetectorBuilder
+
+Used for native paste menu support:
+
+```dart
+class _PinInputState extends State<PinInput>
     implements TextSelectionGestureDetectorBuilderDelegate
 ```
 
-Key delegate properties:
-- `selectionEnabled`: Returns `widget.enableContextMenu && !widget.readOnly`
-- `editableTextKey`: GlobalKey for accessing EditableTextState
-- `forcePressEnabled`: Always false
+### 3. Controller Attachment Pattern
 
-### 2. Text Change Flow
-
-Keyboard Input → EditableText → Controller → Listener → Validation → setState
-
-The `_textEditingControllerListener` method orchestrates:
-1. Haptic feedback
-2. Error state clearing
-3. Text length limiting via `_getLimitedText()`
-4. onChanged callback
-5. onCompleted callback (when length reached)
-6. Auto-dismiss keyboard
-7. Blink effect for obscured text
-
-### 3. Safe State Management Pattern
-
-Always use the custom `_setState` helper to prevent errors when widget is disposed:
+PinInputController uses internal callbacks for widget communication:
 
 ```dart
-void _setState(VoidCallback fn) {
-  if (mounted) {
-    setState(fn);
-  }
+// In PinInputController
+void attach({VoidCallback? onErrorTriggered}) {
+  _onErrorTriggered = onErrorTriggered;
+}
+
+// In _PinInputState
+_effectivePinController.attach(onErrorTriggered: _triggerErrorAnimation);
+```
+
+### 4. Theme Resolution
+
+MaterialPinTheme resolves null colors from ColorScheme:
+
+```dart
+MaterialPinThemeData resolve(BuildContext context) {
+  final colorScheme = Theme.of(context).colorScheme;
+  return MaterialPinThemeData(
+    borderColor: borderColor ?? colorScheme.outline,
+    focusedBorderColor: focusedBorderColor ?? colorScheme.primary,
+    // ...
+  );
 }
 ```
 
-### 4. Post-Frame Callbacks
+## Input Flow
 
-Frequently used to avoid state modification conflicts during build:
-
-```dart
-WidgetsBinding.instance.addPostFrameCallback((_) {
-  if (mounted) {
-    // Safe to modify state after frame
-  }
-});
 ```
-
-Used for:
-- Initial text selection positioning
-- Autofocus handling
-- Text correction after validation
-- Selection forcing to end of text
+User Types → Invisible EditableText → TextEditingController
+    → Controller Listener → Haptic Feedback
+    → Update Cell Data → Rebuild via setState
+    → Call onChanged/onCompleted callbacks
+```
 
 ## Important Implementation Details
 
 ### Input Formatting Order
 
-Applied in `_UnderlyingEditableText.build()`:
-
+In `InvisibleTextField`:
 1. `LengthLimitingTextInputFormatter(length)` - Applied FIRST
-2. Custom user-provided formatters (`widget.inputFormatters`)
-3. `FilteringTextInputFormatter.digitsOnly` - Applied LAST if `keyboardType == TextInputType.number`
+2. Custom user-provided formatters (`inputFormatters`)
+3. `FilteringTextInputFormatter.digitsOnly` - Applied if `keyboardType == TextInputType.number`
 
-### Platform-Specific Text Selection Controls
+### Blink Effect for Obscured Text
 
-```dart
-final TextSelectionControls selectionControls = widget.selectionControls ??
-  switch (platform) {
-    TargetPlatform.iOS || TargetPlatform.macOS => cupertinoTextSelectionHandleControls,
-    TargetPlatform.android || TargetPlatform.fuchsia => materialTextSelectionHandleControls,
-    TargetPlatform.linux || TargetPlatform.windows => desktopTextSelectionHandleControls,
-  };
-```
+When `blinkWhenObscuring` is true:
+1. User types character
+2. `_isBlinking = true`, real character shown
+3. After `blinkDuration`, `_isBlinking = false`
+4. Obscured content shown with AnimatedSwitcher transition
 
-### Context Menu Trigger
+### Error Shake Animation
 
-The context menu (with paste functionality) is triggered by **long press** gesture, handled automatically by `TextSelectionGestureDetectorBuilder`. It only appears when:
-- `enableContextMenu` is true
-- Field is not in `readOnly` mode
-- A `contextMenuBuilder` is provided (or default is used)
-
-### Animation Controllers
-
-The state manages multiple animation controllers:
-
-1. **Error Shake Animation**: `_errorAnimationController`
-   - Duration: `widget.errorAnimationDuration`
-   - Curve: `Curves.elasticIn`
-   - Tween: `Offset.zero` to `Offset(.1, 0.0)`
-
-2. **Cursor Blink**: Managed in `_PinCodeCellContent` (if `animateCursor` is enabled)
-
-3. **Cell Transitions**: `AnimatedContainer` with configurable duration/curve
-
-### Focus Management
-
-- Custom focus listener in `_onFocusChanged()`
-- Hides toolbar on focus lost via `editableTextKey.currentState?.hideToolbar()`
-- Supports `autoDismissKeyboard` to unfocus when PIN complete
-- Safe focus request method `_requestFocusSafely()` handles edge cases
-
-## Key Models and Enums
-
-### PinTheme
-
-Comprehensive styling model supporting all visual states:
-- Colors: active, selected, inactive, disabled, error (border and fill)
-- Dimensions: fieldWidth (default 40), fieldHeight (default 50)
-- Borders: Different widths for each state
-- Shapes: box, underline, circle
-- Shadows: activeBoxShadows, inActiveBoxShadows
-- Spacing: fieldOuterPadding
-
-Factory pattern: `PinTheme.defaults()` provides sensible defaults
-
-### Enums
-
-- `AnimationType`: scale, slide, fade, none (for text entry animations)
-- `HapticFeedbackTypes`: heavy, light, medium, selection, vibrate
-- `PinCodeFieldShape`: box, underline, circle
-- `ErrorAnimationType`: shake, clear (for external error animation control)
+Managed by `ErrorShake` widget wrapping `PinInput`:
+- Triggered via `PinInputController.triggerError()`
+- Uses `SlideTransition` with elastic curve
+- Duration configurable via `MaterialPinTheme.errorAnimationDuration`
 
 ## Common Pitfalls to Avoid
 
-1. **Never skip `mounted` checks** before setState/callbacks after async operations
-2. **Don't modify controller directly** during listener execution - use post-frame callback
-3. **Platform-specific testing required** - behaviors differ on iOS, Android, Web, Desktop
-4. **Always dispose properly**: AnimationControllers, Timers, StreamSubscriptions, listeners
-5. **Don't hardcode colors** in cell widgets - use PinTheme for all styling
-6. **Selection is forced to end** - `_handleSelectionChanged` always moves cursor to text end
+1. **Always check `mounted`** before setState after async operations
+2. **Don't modify controller** during listener execution - use post-frame callback
+3. **Dispose controllers** if you own them (PinInputController handles this internally)
+4. **Use theme for colors** - don't hardcode in cell widgets
+5. **Test on multiple platforms** - behaviors differ on iOS, Android, Web, Desktop
 
-## Widget Lifecycle Critical Points
+## Testing
 
-### initState()
-- Assigns controller (creates new if none provided)
-- Adds listener to controller
-- Initializes FocusNode (or uses provided one)
-- Creates `_gestureDetectorBuilder`
-- Initializes error animation controller
-- Subscribes to external error stream if provided
-- Sets initial selection to end of text (post-frame)
-- Handles autofocus (post-frame)
+Tests are in `packages/pin_code_fields/test/`:
 
-### didUpdateWidget()
-- Re-assigns controller if changed
-- Swaps FocusNode if changed
-- Re-evaluates text if length changed
-- Updates error stream subscription if changed
-- Rebuilds if readOnly or enableContextMenu changed
+```bash
+cd packages/pin_code_fields
+flutter test
+```
 
-### dispose()
-- Cancels error stream subscription
-- Disposes error animation controller
-- Cancels blink debounce timer
-- Removes controller listener
-- Disposes controller (if internally created)
-- Removes focus listener and disposes FocusNode (if internally created)
+Current test coverage:
+- `pin_cell_data_test.dart` - PinCellData model tests
+- `pin_input_test.dart` - PinInput widget tests
 
-## Form Integration
+## Usage Examples
 
-`PinCodeFormField` extends `FormField<String>` and wraps `PinCodeTextField`:
-- Supports standard form validation via `validator`
-- Includes `onSaved` callback
-- Displays error text below field
-- Supports `autovalidateMode`
+### Material Design (Quick)
 
-## Recent Refactoring Context
+```dart
+import 'package:pin_code_fields/pin_code_fields.dart';
 
-Recent commits indicate major restructuring:
-- Renamed from `pin_code_text_fields` to `pin_code_fields`
-- Improved variable naming throughout
-- Removed unnecessary/deprecated fields
-- Fixed late initialization errors
-- Better separation of concerns in widget hierarchy
+MaterialPinField(
+  length: 6,
+  pinController: controller,
+  onCompleted: (pin) => print('PIN: $pin'),
+  theme: MaterialPinTheme(
+    shape: MaterialPinShape.outlined,
+  ),
+)
+```
 
-Files were renamed:
-- `lib/pin_code_text_fields.dart` → `lib/pin_code_fields.dart`
-- `lib/src/pin_code_text_fields_state.dart` → `lib/src/pin_code_fields_state.dart`
+### Custom UI (Headless)
 
-## Known TODOs
+```dart
+import 'package:pin_code_fields/pin_code_fields.dart';
 
-- Add custom cell builder for complete developer freedom in rendering
-- Complete test coverage (currently empty)
-- Finalize CHANGELOG
-- Add LICENSE information
-- Pin autofill integration needs re-implementation
+PinInput(
+  length: 4,
+  builder: (context, cells) {
+    return Row(
+      children: cells.map((cell) => Container(
+        width: 50,
+        height: 50,
+        color: cell.isFocused ? Colors.blue : Colors.grey,
+        child: Center(child: Text(cell.character ?? '')),
+      )).toList(),
+    );
+  },
+)
+```
+
+## Feature Status
+
+See `docs/FEATURE_COMPARISON.md` for complete feature tracking.
+
+All features from v8.x are implemented:
+- ✅ All cell shapes (outlined, filled, underlined, circle)
+- ✅ All animations (scale, fade, slide, none)
+- ✅ Error shake animation
+- ✅ Obscure text with custom widget
+- ✅ Text gradient
+- ✅ Autofill support
+- ✅ Haptic feedback
+- ✅ Form integration
+- ✅ Paste support
