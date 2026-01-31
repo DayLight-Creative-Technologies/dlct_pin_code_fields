@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../haptics.dart';
+import '../pin_controller_mixin.dart';
 import '../pin_input.dart';
 import '../pin_input_controller.dart';
 
@@ -103,7 +104,7 @@ class PinInputFormField extends FormField<String> {
                 PinInput(
                   length: widget.length,
                   builder: widget.pinBuilder,
-                  pinController: state._effectiveController,
+                  pinController: state.effectiveController,
                   keyboardType: widget.keyboardType,
                   textInputAction: widget.textInputAction,
                   inputFormatters: widget.inputFormatters,
@@ -249,47 +250,32 @@ class PinInputFormField extends FormField<String> {
   FormFieldState<String> createState() => _PinInputFormFieldState();
 }
 
-class _PinInputFormFieldState extends FormFieldState<String> {
-  PinInputController? _internalController;
-  bool _ownsController = false;
-
-  PinInputController get _effectiveController {
-    return widget.pinController ?? _internalController!;
-  }
-
+class _PinInputFormFieldState extends FormFieldState<String>
+    with PinControllerMixin {
   @override
   PinInputFormField get widget => super.widget as PinInputFormField;
 
   @override
   void initState() {
     super.initState();
-    _initController();
-  }
-
-  void _initController() {
-    if (widget.pinController == null) {
-      _internalController = PinInputController(text: widget.initialValue);
-      _ownsController = true;
-    } else {
-      _ownsController = false;
-      // Set initial value on external controller if provided
-      if (widget.initialValue != null &&
-          widget.pinController!.text.isEmpty) {
-        widget.pinController!.text = widget.initialValue!;
-      }
-    }
+    // Use mixin for controller initialization
+    initPinController(
+      externalController: widget.pinController,
+      initialValue: widget.initialValue,
+    );
   }
 
   @override
   void didUpdateWidget(PinInputFormField oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Handle controller change
+    // Handle controller change using mixin
     if (widget.pinController != oldWidget.pinController) {
-      if (_ownsController) {
-        _internalController?.dispose();
-      }
-      _initController();
+      reinitPinController(
+        newExternalController: widget.pinController,
+        oldExternalController: oldWidget.pinController,
+        initialValue: widget.initialValue,
+      );
     }
 
     // Handle initial value change
@@ -300,15 +286,13 @@ class _PinInputFormFieldState extends FormFieldState<String> {
 
   @override
   void dispose() {
-    if (_ownsController) {
-      _internalController?.dispose();
-    }
+    disposePinController();
     super.dispose();
   }
 
   @override
   void reset() {
-    _effectiveController.text = widget.initialValue ?? '';
+    effectiveController.text = widget.initialValue ?? '';
     super.reset();
   }
 }

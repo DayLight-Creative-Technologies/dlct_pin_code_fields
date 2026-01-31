@@ -40,6 +40,7 @@ library;
 export 'src/core/pin_input.dart';
 export 'src/core/pin_cell_data.dart';
 export 'src/core/pin_input_controller.dart';
+export 'src/core/pin_controller_mixin.dart';
 export 'src/core/pin_input_scope.dart';
 export 'src/core/haptics.dart';
 export 'src/core/form/pin_input_form_field.dart';

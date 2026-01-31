@@ -9,6 +9,7 @@ import 'gestures/selection_gesture_builder.dart';
 import 'haptics.dart';
 import 'input_capture/invisible_text_field.dart';
 import 'pin_cell_data.dart';
+import 'pin_controller_mixin.dart';
 import 'pin_input_controller.dart';
 import 'pin_input_scope.dart';
 
@@ -197,14 +198,10 @@ class PinInput extends StatefulWidget {
 }
 
 class _PinInputState extends State<PinInput>
-    with TickerProviderStateMixin
+    with TickerProviderStateMixin, PinControllerMixin
     implements TextSelectionGestureDetectorBuilderDelegate {
   // Constants
   static const _fallbackFocusDelay = Duration(milliseconds: 50);
-
-  // Controller - created internally if not provided
-  PinInputController? _pinController;
-  bool _ownsController = false;
 
   // Gesture handling
   late TextSelectionGestureDetectorBuilder _gestureBuilder;
@@ -230,58 +227,48 @@ class _PinInputState extends State<PinInput>
   Timer? _blinkTimer;
   bool _isBlinking = false;
 
-  PinInputController get _effectivePinController => _pinController!;
-  TextEditingController get _effectiveController =>
-      _effectivePinController.textController;
-  FocusNode get _effectiveFocusNode => _effectivePinController.focusNode;
+  // Convenience getters for underlying text controller and focus node
+  TextEditingController get _textController => effectiveController.textController;
+  FocusNode get _focusNode => effectiveController.focusNode;
 
   @override
   void initState() {
     super.initState();
     _initPinController();
-    _effectiveController.addListener(_onTextChanged);
-    _effectiveFocusNode.addListener(_onFocusChanged);
+    _textController.addListener(_onTextChanged);
+    _focusNode.addListener(_onFocusChanged);
     _gestureBuilder = TextSelectionGestureDetectorBuilder(delegate: this);
     _handleAutoFocus();
   }
 
   void _initPinController() {
-    if (widget.pinController != null) {
-      _pinController = widget.pinController;
-      _ownsController = false;
-    } else {
-      _pinController = PinInputController(text: widget.initialValue);
-      _ownsController = true;
-    }
-
-    // Set initial value on external controller if provided and controller is empty
-    if (widget.initialValue != null &&
-        !_ownsController &&
-        _effectiveController.text.isEmpty) {
-      _effectiveController.text = widget.initialValue!;
-    }
+    // Use mixin for controller initialization (handles ownership and initial value)
+    initPinController(
+      externalController: widget.pinController,
+      initialValue: widget.initialValue,
+    );
 
     // Attach for error triggering
-    _effectivePinController.attach(onErrorTriggered: _triggerErrorAnimation);
-    _effectivePinController.addListener(_onPinControllerChanged);
+    effectiveController.attach(onErrorTriggered: _triggerErrorAnimation);
+    effectiveController.addListener(_onPinControllerChanged);
 
     // Ensure initial text doesn't exceed length
-    final initialText = _getLimitedText(_effectiveController.text);
-    if (initialText != _effectiveController.text) {
+    final initialText = _getLimitedText(_textController.text);
+    if (initialText != _textController.text) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _effectiveController.text = initialText;
+          _textController.text = initialText;
         }
       });
     }
 
-    _previousLength = _effectiveController.text.length;
+    _previousLength = _textController.text.length;
   }
 
   void _onPinControllerChanged() {
     if (mounted) {
       // Sync error state from controller
-      final controllerHasError = _effectivePinController.hasError;
+      final controllerHasError = effectiveController.hasError;
       if (_isError != controllerHasError) {
         setState(() => _isError = controllerHasError);
       }
@@ -297,7 +284,7 @@ class _PinInputState extends State<PinInput>
   void _handleAutoFocus() {
     if (widget.autoFocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_effectiveFocusNode.hasFocus) {
+        if (mounted && !_focusNode.hasFocus) {
           _requestFocusSafely();
         }
       });
@@ -306,8 +293,8 @@ class _PinInputState extends State<PinInput>
     // Set initial selection
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _effectiveController.selection = TextSelection.collapsed(
-          offset: _effectiveController.text.length,
+        _textController.selection = TextSelection.collapsed(
+          offset: _textController.text.length,
         );
       }
     });
@@ -319,19 +306,24 @@ class _PinInputState extends State<PinInput>
 
     // Pin controller change
     if (widget.pinController != oldWidget.pinController) {
-      // Detach old
-      _effectiveController.removeListener(_onTextChanged);
-      _effectiveFocusNode.removeListener(_onFocusChanged);
-      _effectivePinController.removeListener(_onPinControllerChanged);
-      _effectivePinController.detach();
-      if (_ownsController) {
-        _pinController?.dispose();
-      }
+      // Use mixin's reinit with cleanup callback
+      reinitPinController(
+        newExternalController: widget.pinController,
+        oldExternalController: oldWidget.pinController,
+        initialValue: widget.initialValue,
+        onBeforeDispose: () {
+          _textController.removeListener(_onTextChanged);
+          _focusNode.removeListener(_onFocusChanged);
+          effectiveController.removeListener(_onPinControllerChanged);
+          effectiveController.detach();
+        },
+      );
 
-      // Attach new
-      _initPinController();
-      _effectiveController.addListener(_onTextChanged);
-      _effectiveFocusNode.addListener(_onFocusChanged);
+      // Setup new controller
+      effectiveController.attach(onErrorTriggered: _triggerErrorAnimation);
+      effectiveController.addListener(_onPinControllerChanged);
+      _textController.addListener(_onTextChanged);
+      _focusNode.addListener(_onFocusChanged);
     }
 
     // Length change
@@ -342,31 +334,29 @@ class _PinInputState extends State<PinInput>
 
   @override
   void dispose() {
-    _effectivePinController.removeListener(_onPinControllerChanged);
-    _effectivePinController.detach();
+    effectiveController.removeListener(_onPinControllerChanged);
+    effectiveController.detach();
     _blinkTimer?.cancel();
-    _effectiveController.removeListener(_onTextChanged);
-    _effectiveFocusNode.removeListener(_onFocusChanged);
-    if (_ownsController) {
-      _pinController?.dispose();
-    }
+    _textController.removeListener(_onTextChanged);
+    _focusNode.removeListener(_onFocusChanged);
+    disposePinController();
     super.dispose();
   }
 
   void _requestFocusSafely() {
-    if (mounted && _effectiveFocusNode.context != null) {
-      FocusScope.of(context).requestFocus(_effectiveFocusNode);
+    if (mounted && _focusNode.context != null) {
+      FocusScope.of(context).requestFocus(_focusNode);
     } else if (mounted) {
       Future.delayed(_fallbackFocusDelay, () {
-        if (mounted && _effectiveFocusNode.context != null) {
-          FocusScope.of(context).requestFocus(_effectiveFocusNode);
+        if (mounted && _focusNode.context != null) {
+          FocusScope.of(context).requestFocus(_focusNode);
         }
       });
     }
   }
 
   void _onFocusChanged() {
-    if (!_effectiveFocusNode.hasFocus) {
+    if (!_focusNode.hasFocus) {
       editableTextKey.currentState?.hideToolbar();
     }
     if (mounted) setState(() {});
@@ -383,18 +373,18 @@ class _PinInputState extends State<PinInput>
     // Clear error on input
     if (_isError) {
       _isError = false;
-      _effectivePinController.setErrorState(false);
+      effectiveController.setErrorState(false);
       setState(() {});
     }
 
-    final currentText = _effectiveController.text;
+    final currentText = _textController.text;
     final limitedText = _getLimitedText(currentText);
 
     // Correct text if needed
     if (currentText != limitedText) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _effectiveController.value = TextEditingValue(
+          _textController.value = TextEditingValue(
             text: limitedText,
             selection: TextSelection.collapsed(offset: limitedText.length),
           );
@@ -485,14 +475,12 @@ class _PinInputState extends State<PinInput>
   ) {
     if (widget.readOnly) return;
     // Force selection to end
-    if (_effectiveController.selection.baseOffset !=
-            _effectiveController.text.length ||
-        _effectiveController.selection.extentOffset !=
-            _effectiveController.text.length) {
+    if (_textController.selection.baseOffset != _textController.text.length ||
+        _textController.selection.extentOffset != _textController.text.length) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _effectiveController.selection = TextSelection.collapsed(
-            offset: _effectiveController.text.length,
+          _textController.selection = TextSelection.collapsed(
+            offset: _textController.text.length,
           );
         }
       });
@@ -500,12 +488,12 @@ class _PinInputState extends State<PinInput>
   }
 
   List<PinCellData> _buildCells() {
-    final text = _effectiveController.text;
+    final text = _textController.text;
     final cells = <PinCellData>[];
 
     for (int i = 0; i < widget.length; i++) {
       final isFilled = i < text.length;
-      final isFocused = _effectiveFocusNode.hasFocus && i == text.length;
+      final isFocused = _focusNode.hasFocus && i == text.length;
       final isLastEntered = i == text.length - 1 && text.isNotEmpty;
 
       cells.add(PinCellData(
@@ -535,7 +523,7 @@ class _PinInputState extends State<PinInput>
 
     Widget content = GestureDetector(
       onTap: () {
-        if (!_effectiveFocusNode.hasFocus && !widget.readOnly) {
+        if (!_focusNode.hasFocus && !widget.readOnly) {
           _requestFocusSafely();
         }
         widget.onTap?.call();
@@ -546,7 +534,7 @@ class _PinInputState extends State<PinInput>
           cells: cells,
           obscureText: widget.obscureText,
           obscuringCharacter: widget.obscuringCharacter,
-          hasFocus: _effectiveFocusNode.hasFocus,
+          hasFocus: _focusNode.hasFocus,
           requestFocus: _requestFocusSafely,
           child: Stack(
             children: [
@@ -557,8 +545,8 @@ class _PinInputState extends State<PinInput>
               Positioned.fill(
                 child: InvisibleTextField(
                   editableTextKey: editableTextKey,
-                  controller: _effectiveController,
-                  focusNode: _effectiveFocusNode,
+                  controller: _textController,
+                  focusNode: _focusNode,
                   length: widget.length,
                   readOnly: widget.readOnly,
                   selectionEnabled: selectionEnabled,

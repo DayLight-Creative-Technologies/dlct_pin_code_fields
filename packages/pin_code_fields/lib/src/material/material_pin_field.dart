@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/haptics.dart';
+import '../core/pin_controller_mixin.dart';
 import '../core/pin_input.dart';
 import '../core/pin_input_controller.dart';
 import 'animations/error_shake.dart';
@@ -187,16 +188,11 @@ class MaterialPinField extends StatefulWidget {
   State<MaterialPinField> createState() => _MaterialPinFieldState();
 }
 
-class _MaterialPinFieldState extends State<MaterialPinField> {
+class _MaterialPinFieldState extends State<MaterialPinField>
+    with PinControllerMixin {
   final GlobalKey<ErrorShakeState> _shakeKey = GlobalKey<ErrorShakeState>();
 
-  PinInputController? _internalController;
-  bool _ownsController = false;
   bool _previousHasError = false;
-
-  PinInputController get _effectiveController {
-    return widget.pinController ?? _internalController!;
-  }
 
   @override
   void initState() {
@@ -205,24 +201,18 @@ class _MaterialPinFieldState extends State<MaterialPinField> {
   }
 
   void _initController() {
-    if (widget.pinController == null) {
-      _internalController = PinInputController(text: widget.initialValue);
-      _ownsController = true;
-    } else {
-      _ownsController = false;
-      // Set initial value on external controller if provided and controller is empty
-      if (widget.initialValue != null &&
-          widget.pinController!.text.isEmpty) {
-        widget.pinController!.text = widget.initialValue!;
-      }
-    }
-    _effectiveController.addListener(_onControllerChanged);
-    _previousHasError = _effectiveController.hasError;
+    // Use mixin for controller initialization
+    initPinController(
+      externalController: widget.pinController,
+      initialValue: widget.initialValue,
+    );
+    effectiveController.addListener(_onControllerChanged);
+    _previousHasError = effectiveController.hasError;
   }
 
   void _onControllerChanged() {
     // Trigger shake when error state transitions from false to true
-    final currentHasError = _effectiveController.hasError;
+    final currentHasError = effectiveController.hasError;
     if (currentHasError && !_previousHasError) {
       _shakeKey.currentState?.shake();
     }
@@ -233,22 +223,26 @@ class _MaterialPinFieldState extends State<MaterialPinField> {
   void didUpdateWidget(MaterialPinField oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Handle controller change
+    // Handle controller change using mixin
     if (widget.pinController != oldWidget.pinController) {
-      _effectiveController.removeListener(_onControllerChanged);
-      if (_ownsController) {
-        _internalController?.dispose();
-      }
-      _initController();
+      reinitPinController(
+        newExternalController: widget.pinController,
+        oldExternalController: oldWidget.pinController,
+        initialValue: widget.initialValue,
+        onBeforeDispose: () {
+          effectiveController.removeListener(_onControllerChanged);
+        },
+      );
+      // Setup new controller
+      effectiveController.addListener(_onControllerChanged);
+      _previousHasError = effectiveController.hasError;
     }
   }
 
   @override
   void dispose() {
-    _effectiveController.removeListener(_onControllerChanged);
-    if (_ownsController) {
-      _internalController?.dispose();
-    }
+    effectiveController.removeListener(_onControllerChanged);
+    disposePinController();
     super.dispose();
   }
 
@@ -262,7 +256,7 @@ class _MaterialPinFieldState extends State<MaterialPinField> {
       enabled: resolvedTheme.enableErrorShake,
       child: PinInput(
         length: widget.length,
-        pinController: _effectiveController,
+        pinController: effectiveController,
         initialValue: widget.initialValue,
         keyboardType: widget.keyboardType,
         textInputAction: widget.textInputAction,
