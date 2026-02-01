@@ -57,9 +57,11 @@ class PinInputFormField extends FormField<String> {
     this.textCapitalization = TextCapitalization.none,
     this.autofillHints,
     // Behavior
+    super.enabled,
     this.autoFocus = false,
     this.readOnly = false,
     this.autoDismissKeyboard = true,
+    this.clearErrorOnInput = true,
     this.obscureText = false,
     this.obscuringCharacter = '●',
     this.blinkWhenObscuring = true,
@@ -110,9 +112,11 @@ class PinInputFormField extends FormField<String> {
                   inputFormatters: widget.inputFormatters,
                   textCapitalization: widget.textCapitalization,
                   autofillHints: widget.autofillHints,
+                  enabled: widget.enabled,
                   autoFocus: widget.autoFocus,
                   readOnly: widget.readOnly,
                   autoDismissKeyboard: widget.autoDismissKeyboard,
+                  clearErrorOnInput: widget.clearErrorOnInput,
                   obscureText: widget.obscureText,
                   obscuringCharacter: widget.obscuringCharacter,
                   blinkWhenObscuring: widget.blinkWhenObscuring,
@@ -155,6 +159,9 @@ class PinInputFormField extends FormField<String> {
   final int length;
 
   /// Builder that receives cell data and returns the visual representation.
+  ///
+  /// Note: Named `pinBuilder` instead of `builder` to avoid conflict with
+  /// the inherited [FormField.builder] which has a different signature.
   final PinCellBuilder pinBuilder;
 
   /// Controller for the PIN input.
@@ -185,6 +192,13 @@ class PinInputFormField extends FormField<String> {
 
   /// Whether to dismiss the keyboard when PIN is complete.
   final bool autoDismissKeyboard;
+
+  /// Whether to automatically clear error state when user types.
+  ///
+  /// When `true` (default), any error state is cleared as soon as the user
+  /// enters a new character. Set to `false` if you want the error to persist
+  /// until explicitly cleared via `controller.clearError()`.
+  final bool clearErrorOnInput;
 
   /// Whether to obscure the entered text.
   final bool obscureText;

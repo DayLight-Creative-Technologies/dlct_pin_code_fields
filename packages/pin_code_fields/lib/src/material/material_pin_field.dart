@@ -43,9 +43,11 @@ class MaterialPinField extends StatefulWidget {
     this.enableAutofill = false,
     this.autofillContextAction = AutofillContextAction.commit,
     // Behavior
+    this.enabled = true,
     this.autoFocus = false,
     this.readOnly = false,
     this.autoDismissKeyboard = true,
+    this.clearErrorOnInput = true,
     this.obscureText = false,
     this.obscuringWidget,
     this.blinkWhenObscuring = true,
@@ -61,7 +63,7 @@ class MaterialPinField extends StatefulWidget {
     this.onSubmitted,
     this.onEditingComplete,
     this.onTap,
-    // Hint
+    // Hint (overrides theme)
     this.hintCharacter,
     this.hintStyle,
     // Layout
@@ -116,6 +118,13 @@ class MaterialPinField extends StatefulWidget {
   /// - [AutofillContextAction.cancel]: Discard the autofilled data
   final AutofillContextAction autofillContextAction;
 
+  /// Whether the field is enabled.
+  ///
+  /// When `false`, the field is visually grayed out and does not accept input.
+  /// This is different from [readOnly], which prevents editing but maintains
+  /// the normal visual appearance.
+  final bool enabled;
+
   /// Whether to auto-focus on mount.
   final bool autoFocus;
 
@@ -124,6 +133,13 @@ class MaterialPinField extends StatefulWidget {
 
   /// Whether to dismiss the keyboard when PIN is complete.
   final bool autoDismissKeyboard;
+
+  /// Whether to automatically clear error state when user types.
+  ///
+  /// When `true` (default), any error state is cleared as soon as the user
+  /// enters a new character. Set to `false` if you want the error to persist
+  /// until explicitly cleared via `controller.clearError()`.
+  final bool clearErrorOnInput;
 
   /// Whether to obscure the entered text.
   final bool obscureText;
@@ -165,9 +181,13 @@ class MaterialPinField extends StatefulWidget {
   final VoidCallback? onTap;
 
   /// Hint character to show in empty cells.
+  ///
+  /// Overrides [MaterialPinTheme.hintCharacter] if provided.
   final String? hintCharacter;
 
   /// Style for hint character.
+  ///
+  /// Overrides [MaterialPinTheme.hintStyle] if provided.
   final TextStyle? hintStyle;
 
   /// Optional builder for separators between cells.
@@ -257,7 +277,7 @@ class _MaterialPinFieldState extends State<MaterialPinField>
       child: PinInput(
         length: widget.length,
         pinController: effectiveController,
-        initialValue: widget.initialValue,
+        // Note: initialValue is handled by the mixin during controller init
         keyboardType: widget.keyboardType,
         textInputAction: widget.textInputAction,
         inputFormatters: widget.inputFormatters,
@@ -265,9 +285,11 @@ class _MaterialPinFieldState extends State<MaterialPinField>
         autofillHints: widget.autofillHints,
         enableAutofill: widget.enableAutofill,
         autofillContextAction: widget.autofillContextAction,
+        enabled: widget.enabled,
         autoFocus: widget.autoFocus,
         readOnly: widget.readOnly,
         autoDismissKeyboard: widget.autoDismissKeyboard,
+        clearErrorOnInput: widget.clearErrorOnInput,
         obscureText: widget.obscureText,
         obscuringCharacter: resolvedTheme.obscuringCharacter,
         blinkWhenObscuring: widget.blinkWhenObscuring,

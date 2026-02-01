@@ -8,6 +8,79 @@ import '../shapes/underlined_decoration.dart';
 import '../theme/material_pin_theme.dart';
 import 'material_cell_content.dart';
 
+/// Style properties for a PIN cell based on its current state.
+///
+/// This class encapsulates the visual styling that changes based on
+/// cell state (disabled, error, focused, filled, empty).
+class PinCellStateStyle {
+  const PinCellStateStyle({
+    required this.fillColor,
+    required this.borderColor,
+    required this.borderWidth,
+    this.boxShadows,
+  });
+
+  final Color fillColor;
+  final Color borderColor;
+  final double borderWidth;
+  final List<BoxShadow>? boxShadows;
+
+  /// Resolves the appropriate style based on cell state and theme.
+  ///
+  /// Priority order (first match wins):
+  /// 1. Disabled - grayed out appearance
+  /// 2. Error - error color with emphasis
+  /// 3. Focused - highlighted with focus indicators
+  /// 4. Filled - has content, normal appearance
+  /// 5. Empty - default appearance
+  factory PinCellStateStyle.fromState(
+    PinCellData data,
+    MaterialPinThemeData theme,
+  ) {
+    if (data.isDisabled) {
+      return PinCellStateStyle(
+        fillColor: theme.disabledFillColor,
+        borderColor: theme.disabledBorderColor,
+        borderWidth: theme.borderWidth,
+      );
+    }
+
+    if (data.isError) {
+      return PinCellStateStyle(
+        fillColor: theme.errorColor.withValues(alpha: 0.1),
+        borderColor: theme.errorColor,
+        borderWidth: theme.focusedBorderWidth,
+      );
+    }
+
+    if (data.isFocused) {
+      return PinCellStateStyle(
+        fillColor: theme.focusedFillColor,
+        borderColor: theme.focusedBorderColor,
+        borderWidth: theme.focusedBorderWidth,
+        boxShadows: theme.focusedBoxShadows,
+      );
+    }
+
+    if (data.isFilled) {
+      return PinCellStateStyle(
+        fillColor: theme.filledFillColor,
+        borderColor: theme.filledBorderColor,
+        borderWidth: theme.borderWidth,
+        boxShadows: theme.boxShadows,
+      );
+    }
+
+    // Empty state (default)
+    return PinCellStateStyle(
+      fillColor: theme.fillColor,
+      borderColor: theme.borderColor,
+      borderWidth: theme.borderWidth,
+      boxShadows: theme.boxShadows,
+    );
+  }
+}
+
 /// A Material Design PIN cell widget.
 ///
 /// This widget renders a single PIN cell with the appropriate styling
@@ -36,9 +109,13 @@ class MaterialPinCell extends StatelessWidget {
   final Widget? obscuringWidget;
 
   /// Hint character to show in empty cells.
+  ///
+  /// If null, falls back to [MaterialPinThemeData.hintCharacter].
   final String? hintCharacter;
 
   /// Style for hint character.
+  ///
+  /// If null, falls back to [MaterialPinThemeData.hintStyle].
   final TextStyle? hintStyle;
 
   @override
@@ -62,69 +139,33 @@ class MaterialPinCell extends StatelessWidget {
   }
 
   BoxDecoration _buildDecoration() {
-    // Determine colors based on state
-    Color fillColor;
-    Color borderColor;
-    double borderWidth;
-    List<BoxShadow>? boxShadows;
+    final style = PinCellStateStyle.fromState(data, theme);
 
-    if (data.isDisabled) {
-      fillColor = theme.disabledColor.withValues(alpha: 0.1);
-      borderColor = theme.disabledColor;
-      borderWidth = theme.borderWidth;
-      boxShadows = null;
-    } else if (data.isError) {
-      fillColor = theme.errorColor.withValues(alpha: 0.1);
-      borderColor = theme.errorColor;
-      borderWidth = theme.focusedBorderWidth;
-      boxShadows = null;
-    } else if (data.isFocused) {
-      fillColor = theme.focusedFillColor;
-      borderColor = theme.focusedBorderColor;
-      borderWidth = theme.focusedBorderWidth;
-      boxShadows = theme.focusedBoxShadows;
-    } else if (data.isFilled) {
-      fillColor = theme.filledFillColor;
-      borderColor = theme.filledBorderColor;
-      borderWidth = theme.borderWidth;
-      boxShadows = theme.boxShadows;
-    } else {
-      fillColor = theme.fillColor;
-      borderColor = theme.borderColor;
-      borderWidth = theme.borderWidth;
-      boxShadows = theme.boxShadows;
-    }
-
-    // Build decoration based on shape
-    switch (theme.shape) {
-      case MaterialPinShape.outlined:
-        return buildOutlinedDecoration(
-          fillColor: fillColor,
-          borderColor: borderColor,
-          borderWidth: borderWidth,
+    return switch (theme.shape) {
+      MaterialPinShape.outlined => buildOutlinedDecoration(
+          fillColor: style.fillColor,
+          borderColor: style.borderColor,
+          borderWidth: style.borderWidth,
           borderRadius: theme.borderRadius,
-          boxShadows: boxShadows,
-        );
-      case MaterialPinShape.filled:
-        return buildFilledDecoration(
-          fillColor: fillColor,
+          boxShadows: style.boxShadows,
+        ),
+      MaterialPinShape.filled => buildFilledDecoration(
+          fillColor: style.fillColor,
           borderRadius: theme.borderRadius,
-          boxShadows: boxShadows,
-        );
-      case MaterialPinShape.underlined:
-        return buildUnderlinedDecoration(
+          boxShadows: style.boxShadows,
+        ),
+      MaterialPinShape.underlined => buildUnderlinedDecoration(
           fillColor: Colors.transparent,
-          borderColor: borderColor,
-          borderWidth: borderWidth,
-          boxShadows: boxShadows,
-        );
-      case MaterialPinShape.circle:
-        return buildCircleDecoration(
-          fillColor: fillColor,
-          borderColor: borderColor,
-          borderWidth: borderWidth,
-          boxShadows: boxShadows,
-        );
-    }
+          borderColor: style.borderColor,
+          borderWidth: style.borderWidth,
+          boxShadows: style.boxShadows,
+        ),
+      MaterialPinShape.circle => buildCircleDecoration(
+          fillColor: style.fillColor,
+          borderColor: style.borderColor,
+          borderWidth: style.borderWidth,
+          boxShadows: style.boxShadows,
+        ),
+    };
   }
 }

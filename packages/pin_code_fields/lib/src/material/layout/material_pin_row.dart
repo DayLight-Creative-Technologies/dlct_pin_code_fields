@@ -34,9 +34,13 @@ class MaterialPinRow extends StatelessWidget {
   final Widget? obscuringWidget;
 
   /// Hint character to show in empty cells.
+  ///
+  /// If null, falls back to [MaterialPinThemeData.hintCharacter].
   final String? hintCharacter;
 
   /// Style for hint character.
+  ///
+  /// If null, falls back to [MaterialPinThemeData.hintStyle].
   final TextStyle? hintStyle;
 
   /// Optional builder for separators between cells.

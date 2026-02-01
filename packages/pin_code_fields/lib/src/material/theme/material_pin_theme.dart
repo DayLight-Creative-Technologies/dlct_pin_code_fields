@@ -69,10 +69,16 @@ class MaterialPinTheme {
     this.filledBorderColor,
     this.errorColor,
     this.disabledColor,
+    this.disabledFillColor,
+    this.disabledBorderColor,
+    this.disabledTextStyle,
     // Text
     this.textStyle,
     this.textGradient,
     this.obscuringCharacter = '●',
+    // Hint
+    this.hintCharacter,
+    this.hintStyle,
     // Cursor
     this.cursorColor,
     this.cursorWidth = 2.0,
@@ -139,7 +145,25 @@ class MaterialPinTheme {
   final Color? errorColor;
 
   /// Color used for disabled state.
+  ///
+  /// This is the base disabled color. If [disabledFillColor], [disabledBorderColor],
+  /// or [disabledTextStyle] are not provided, they will be derived from this color.
   final Color? disabledColor;
+
+  /// Fill color for disabled cells.
+  ///
+  /// If not provided, defaults to [disabledColor] with 10% opacity.
+  final Color? disabledFillColor;
+
+  /// Border color for disabled cells.
+  ///
+  /// If not provided, defaults to [disabledColor].
+  final Color? disabledBorderColor;
+
+  /// Text style for disabled cells.
+  ///
+  /// If not provided, defaults to [textStyle] with [disabledColor].
+  final TextStyle? disabledTextStyle;
 
   /// Text style for PIN characters.
   final TextStyle? textStyle;
@@ -151,6 +175,17 @@ class MaterialPinTheme {
 
   /// Character used to obscure text.
   final String obscuringCharacter;
+
+  /// Hint character to show in empty cells.
+  ///
+  /// If set, this character will be displayed in cells that don't have input yet.
+  /// Common uses include showing a dash (-) or dot (•) as a placeholder.
+  final String? hintCharacter;
+
+  /// Style for hint character.
+  ///
+  /// If not provided, will use [textStyle] with reduced opacity.
+  final TextStyle? hintStyle;
 
   /// Cursor color.
   final Color? cursorColor;
@@ -232,9 +267,14 @@ class MaterialPinTheme {
     Color? filledBorderColor,
     Color? errorColor,
     Color? disabledColor,
+    Color? disabledFillColor,
+    Color? disabledBorderColor,
+    TextStyle? disabledTextStyle,
     TextStyle? textStyle,
     Gradient? textGradient,
     String? obscuringCharacter,
+    String? hintCharacter,
+    TextStyle? hintStyle,
     Color? cursorColor,
     double? cursorWidth,
     double? cursorHeight,
@@ -267,9 +307,14 @@ class MaterialPinTheme {
       filledBorderColor: filledBorderColor ?? this.filledBorderColor,
       errorColor: errorColor ?? this.errorColor,
       disabledColor: disabledColor ?? this.disabledColor,
+      disabledFillColor: disabledFillColor ?? this.disabledFillColor,
+      disabledBorderColor: disabledBorderColor ?? this.disabledBorderColor,
+      disabledTextStyle: disabledTextStyle ?? this.disabledTextStyle,
       textStyle: textStyle ?? this.textStyle,
       textGradient: textGradient ?? this.textGradient,
       obscuringCharacter: obscuringCharacter ?? this.obscuringCharacter,
+      hintCharacter: hintCharacter ?? this.hintCharacter,
+      hintStyle: hintStyle ?? this.hintStyle,
       cursorColor: cursorColor ?? this.cursorColor,
       cursorWidth: cursorWidth ?? this.cursorWidth,
       cursorHeight: cursorHeight ?? this.cursorHeight,
@@ -298,6 +343,11 @@ class MaterialPinTheme {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    // Resolve base disabled color first (used for fallbacks)
+    final resolvedDisabledColor =
+        disabledColor ?? colorScheme.onSurface.withValues(alpha: 0.38);
+    final resolvedTextStyle = textStyle ?? textTheme.headlineSmall;
+
     return MaterialPinThemeData(
       shape: shape,
       cellSize: cellSize,
@@ -312,10 +362,17 @@ class MaterialPinTheme {
       focusedBorderColor: focusedBorderColor ?? colorScheme.primary,
       filledBorderColor: filledBorderColor ?? colorScheme.outline,
       errorColor: errorColor ?? colorScheme.error,
-      disabledColor: disabledColor ?? colorScheme.onSurface.withValues(alpha: 0.38),
-      textStyle: textStyle ?? textTheme.headlineSmall,
+      disabledColor: resolvedDisabledColor,
+      disabledFillColor:
+          disabledFillColor ?? resolvedDisabledColor.withValues(alpha: 0.1),
+      disabledBorderColor: disabledBorderColor ?? resolvedDisabledColor,
+      disabledTextStyle: disabledTextStyle ??
+          resolvedTextStyle?.copyWith(color: resolvedDisabledColor),
+      textStyle: resolvedTextStyle,
       textGradient: textGradient,
       obscuringCharacter: obscuringCharacter,
+      hintCharacter: hintCharacter,
+      hintStyle: hintStyle,
       cursorColor: cursorColor ?? colorScheme.primary,
       cursorWidth: cursorWidth,
       cursorHeight: cursorHeight,
@@ -357,9 +414,14 @@ class MaterialPinThemeData {
     required this.filledBorderColor,
     required this.errorColor,
     required this.disabledColor,
+    required this.disabledFillColor,
+    required this.disabledBorderColor,
+    required this.disabledTextStyle,
     required this.textStyle,
     required this.textGradient,
     required this.obscuringCharacter,
+    required this.hintCharacter,
+    required this.hintStyle,
     required this.cursorColor,
     required this.cursorWidth,
     required this.cursorHeight,
@@ -392,9 +454,14 @@ class MaterialPinThemeData {
   final Color filledBorderColor;
   final Color errorColor;
   final Color disabledColor;
+  final Color disabledFillColor;
+  final Color disabledBorderColor;
+  final TextStyle? disabledTextStyle;
   final TextStyle? textStyle;
   final Gradient? textGradient;
   final String obscuringCharacter;
+  final String? hintCharacter;
+  final TextStyle? hintStyle;
   final Color cursorColor;
   final double cursorWidth;
   final double? cursorHeight;

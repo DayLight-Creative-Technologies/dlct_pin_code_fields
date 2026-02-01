@@ -52,9 +52,11 @@ class PinInput extends StatefulWidget {
     this.textCapitalization = TextCapitalization.none,
     this.autofillHints,
     // Behavior
+    this.enabled = true,
     this.autoFocus = false,
     this.readOnly = false,
     this.autoDismissKeyboard = true,
+    this.clearErrorOnInput = true,
     this.obscureText = false,
     this.obscuringCharacter = '●',
     this.blinkWhenObscuring = true,
@@ -122,6 +124,17 @@ class PinInput extends StatefulWidget {
   /// Autofill hints for the text field.
   final Iterable<String>? autofillHints;
 
+  /// Whether the field is enabled.
+  ///
+  /// When `false`, the field is visually grayed out and does not accept input.
+  /// This is different from [readOnly], which prevents editing but maintains
+  /// the normal visual appearance.
+  ///
+  /// Flutter convention:
+  /// - `enabled: false` - grayed out, no interaction
+  /// - `readOnly: true` - looks normal, but can't edit
+  final bool enabled;
+
   /// Whether to auto-focus on mount.
   final bool autoFocus;
 
@@ -130,6 +143,13 @@ class PinInput extends StatefulWidget {
 
   /// Whether to dismiss the keyboard when PIN is complete.
   final bool autoDismissKeyboard;
+
+  /// Whether to automatically clear error state when user types.
+  ///
+  /// When `true` (default), any error state is cleared as soon as the user
+  /// enters a new character. Set to `false` if you want the error to persist
+  /// until explicitly cleared via `controller.clearError()`.
+  final bool clearErrorOnInput;
 
   /// Whether to obscure the entered text.
   final bool obscureText;
@@ -212,7 +232,8 @@ class _PinInputState extends State<PinInput>
       GlobalKey<EditableTextState>();
 
   @override
-  bool get selectionEnabled => widget.enablePaste && !widget.readOnly;
+  bool get selectionEnabled =>
+      widget.enabled && widget.enablePaste && !widget.readOnly;
 
   @override
   bool get forcePressEnabled => false;
@@ -242,27 +263,46 @@ class _PinInputState extends State<PinInput>
   }
 
   void _initPinController() {
-    // Use mixin for controller initialization (handles ownership and initial value)
+    // 1. Create or assign controller (mixin handles ownership and initial value)
     initPinController(
       externalController: widget.pinController,
       initialValue: widget.initialValue,
     );
 
-    // Attach for error triggering
+    // 2. Setup listeners for error sync and text changes
+    _attachControllerListeners();
+
+    // 3. Validate and correct initial text if needed
+    _validateInitialText();
+
+    // 4. Initialize length tracking
+    _previousLength = _textController.text.length;
+  }
+
+  /// Attaches listeners to the controller for error state synchronization.
+  void _attachControllerListeners() {
     effectiveController.attach(onErrorTriggered: _triggerErrorAnimation);
     effectiveController.addListener(_onPinControllerChanged);
+  }
 
-    // Ensure initial text doesn't exceed length
-    final initialText = _getLimitedText(_textController.text);
-    if (initialText != _textController.text) {
+  /// Detaches listeners from the controller.
+  void _detachControllerListeners() {
+    effectiveController.removeListener(_onPinControllerChanged);
+    effectiveController.detach();
+  }
+
+  /// Validates that initial text doesn't exceed the PIN length.
+  void _validateInitialText() {
+    final currentText = _textController.text;
+    final limitedText = _getLimitedText(currentText);
+
+    if (limitedText != currentText) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _textController.text = initialText;
+          _textController.text = limitedText;
         }
       });
     }
-
-    _previousLength = _textController.text.length;
   }
 
   void _onPinControllerChanged() {
@@ -314,14 +354,12 @@ class _PinInputState extends State<PinInput>
         onBeforeDispose: () {
           _textController.removeListener(_onTextChanged);
           _focusNode.removeListener(_onFocusChanged);
-          effectiveController.removeListener(_onPinControllerChanged);
-          effectiveController.detach();
+          _detachControllerListeners();
         },
       );
 
       // Setup new controller
-      effectiveController.attach(onErrorTriggered: _triggerErrorAnimation);
-      effectiveController.addListener(_onPinControllerChanged);
+      _attachControllerListeners();
       _textController.addListener(_onTextChanged);
       _focusNode.addListener(_onFocusChanged);
     }
@@ -334,8 +372,7 @@ class _PinInputState extends State<PinInput>
 
   @override
   void dispose() {
-    effectiveController.removeListener(_onPinControllerChanged);
-    effectiveController.detach();
+    _detachControllerListeners();
     _blinkTimer?.cancel();
     _textController.removeListener(_onTextChanged);
     _focusNode.removeListener(_onFocusChanged);
@@ -370,8 +407,8 @@ class _PinInputState extends State<PinInput>
       triggerHaptic(widget.hapticFeedbackType);
     }
 
-    // Clear error on input
-    if (_isError) {
+    // Clear error on input (if enabled)
+    if (_isError && widget.clearErrorOnInput) {
       _isError = false;
       effectiveController.setErrorState(false);
       setState(() {});
@@ -502,7 +539,7 @@ class _PinInputState extends State<PinInput>
         isFilled: isFilled,
         isFocused: isFocused,
         isError: _isError,
-        isDisabled: widget.readOnly,
+        isDisabled: !widget.enabled,
         wasJustEntered: _justEnteredIndices.contains(i),
         wasJustRemoved: _justRemovedIndices.contains(i),
         isBlinking: widget.obscureText &&
@@ -523,7 +560,7 @@ class _PinInputState extends State<PinInput>
 
     Widget content = GestureDetector(
       onTap: () {
-        if (!_focusNode.hasFocus && !widget.readOnly) {
+        if (widget.enabled && !_focusNode.hasFocus && !widget.readOnly) {
           _requestFocusSafely();
         }
         widget.onTap?.call();

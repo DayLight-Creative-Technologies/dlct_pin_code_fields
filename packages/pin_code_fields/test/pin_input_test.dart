@@ -127,7 +127,32 @@ void main() {
         ),
       );
 
-      // All cells should be disabled
+      // readOnly cells should NOT be visually disabled (Flutter convention)
+      // readOnly = looks normal, but can't edit
+      expect(capturedCells!.every((c) => !c.isDisabled), true);
+    });
+
+    testWidgets('respects enabled=false mode', (tester) async {
+      List<PinCellData>? capturedCells;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PinInput(
+              length: 4,
+              enabled: false,
+              builder: (context, cells) {
+                capturedCells = cells;
+                return Row(
+                  children: cells.map((c) => Text(c.character ?? '-')).toList(),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      // enabled=false cells should be visually disabled (grayed out)
       expect(capturedCells!.every((c) => c.isDisabled), true);
     });
 

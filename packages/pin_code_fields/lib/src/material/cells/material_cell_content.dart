@@ -33,9 +33,13 @@ class MaterialCellContent extends StatelessWidget {
   final Widget? obscuringWidget;
 
   /// Hint character to show in empty cells.
+  ///
+  /// If null, falls back to [MaterialPinThemeData.hintCharacter].
   final String? hintCharacter;
 
   /// Style for hint character.
+  ///
+  /// If null, falls back to [MaterialPinThemeData.hintStyle].
   final TextStyle? hintStyle;
 
   @override
@@ -67,8 +71,9 @@ class MaterialCellContent extends StatelessWidget {
     }
 
     // Empty cell - show hint or nothing
-    if (hintCharacter != null) {
-      return _buildHint(context);
+    final effectiveHintChar = hintCharacter ?? theme.hintCharacter;
+    if (effectiveHintChar != null) {
+      return _buildHint(context, effectiveHintChar);
     }
 
     return const SizedBox.shrink(key: ValueKey('empty'));
@@ -80,24 +85,33 @@ class MaterialCellContent extends StatelessWidget {
 
     // Use custom obscuring widget if provided
     if (shouldObscure && obscuringWidget != null) {
-      return KeyedSubtree(
+      // Apply opacity for disabled state
+      Widget child = KeyedSubtree(
         key: ValueKey('obscure_widget_${data.index}'),
         child: obscuringWidget!,
       );
+      if (data.isDisabled) {
+        child = Opacity(opacity: 0.38, child: child);
+      }
+      return child;
     }
 
     // Use character (either actual or obscuring character)
     final displayChar =
         shouldObscure ? theme.obscuringCharacter : data.character!;
 
+    // Apply disabled text style when disabled
+    final effectiveTextStyle =
+        data.isDisabled ? theme.disabledTextStyle : theme.textStyle;
+
     Widget textWidget = Text(
       displayChar,
       key: ValueKey('char_${data.index}_$displayChar'),
-      style: theme.textStyle,
+      style: effectiveTextStyle,
     );
 
-    // Apply gradient if provided
-    if (theme.textGradient != null) {
+    // Apply gradient if provided (only when not disabled)
+    if (theme.textGradient != null && !data.isDisabled) {
       textWidget = ShaderMask(
         shaderCallback: (bounds) => theme.textGradient!.createShader(bounds),
         blendMode: BlendMode.srcIn,
@@ -122,13 +136,15 @@ class MaterialCellContent extends StatelessWidget {
     );
   }
 
-  Widget _buildHint(BuildContext context) {
+  Widget _buildHint(BuildContext context, String hintChar) {
+    // Widget value overrides theme value
     final effectiveHintStyle = hintStyle ??
+        theme.hintStyle ??
         theme.textStyle?.copyWith(color: theme.disabledColor) ??
         TextStyle(color: theme.disabledColor);
 
     return Text(
-      hintCharacter!,
+      hintChar,
       key: ValueKey('hint_${data.index}'),
       style: effectiveHintStyle,
     );
