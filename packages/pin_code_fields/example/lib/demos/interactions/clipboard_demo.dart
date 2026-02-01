@@ -44,138 +44,144 @@ class _ClipboardDemoState extends State<ClipboardDemo> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Clipboard Detection')),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const Text(
-              'Clipboard Detection',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Automatically detect PIN codes in clipboard',
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 32),
-
-            // PIN Field
-            MaterialPinField(
-              length: 6,
-              pinController: _pinController,
-              autoFocus: true,
-              theme: const MaterialPinTheme(
-                shape: MaterialPinShape.outlined,
-                cellSize: Size(44, 52),
-                borderRadius: BorderRadius.all(Radius.circular(8)),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Text(
+                'Clipboard Detection',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              onClipboardFound: (code) {
-                setState(() => _detectedCode = code);
-              },
-              clipboardValidator: (text, length) {
-                // Accept 6-digit codes only
-                return text.length == length && RegExp(r'^[0-9]+$').hasMatch(text);
-              },
-              onCompleted: (pin) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Completed: $pin')),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 8),
+              Text(
+                'Automatically detect PIN codes in clipboard',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 32),
 
-            // Detected code prompt
-            if (_detectedCode != null)
+              // PIN Field
+              MaterialPinField(
+                length: 6,
+                pinController: _pinController,
+                autoFocus: true,
+                theme: const MaterialPinTheme(
+                  shape: MaterialPinShape.outlined,
+                  cellSize: Size(44, 52),
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                ),
+                onClipboardFound: (code) {
+                  setState(() => _detectedCode = code);
+                },
+                clipboardValidator: (text, length) {
+                  // Accept 6-digit codes only
+                  return text.length == length &&
+                      RegExp(r'^[0-9]+$').hasMatch(text);
+                },
+                onCompleted: (pin) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Completed: $pin')),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Detected code prompt
+              if (_detectedCode != null)
+                Card(
+                  color: colorScheme.primaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.content_paste, color: colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Code found in clipboard',
+                                style: TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                _detectedCode!,
+                                style: TextStyle(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed: _pasteCode,
+                          child: const Text('Paste'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 32),
+
+              // Test codes to copy
+              const Text('Try These Codes',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _CopyButton(code: '123456', onCopy: _copyToClipboard),
+                  _CopyButton(code: '000000', onCopy: _copyToClipboard),
+                  _CopyButton(code: '987654', onCopy: _copyToClipboard),
+                ],
+              ),
+
+              const SizedBox(height: 24),
+
+              // Instructions
               Card(
-                color: colorScheme.primaryContainer,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.content_paste, color: colorScheme.primary),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Code found in clipboard',
-                              style: TextStyle(fontWeight: FontWeight.w500),
-                            ),
-                            Text(
-                              _detectedCode!,
-                              style: TextStyle(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                letterSpacing: 2,
-                              ),
-                            ),
-                          ],
+                      const Text('How It Works',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text(
+                        '1. Copy a 6-digit code to clipboard\n'
+                        '2. Tap the PIN field to focus it\n'
+                        '3. The code is detected and shown\n'
+                        '4. Tap "Paste" to auto-fill',
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          height: 1.5,
                         ),
-                      ),
-                      FilledButton(
-                        onPressed: _pasteCode,
-                        child: const Text('Paste'),
                       ),
                     ],
                   ),
                 ),
               ),
 
-            const SizedBox(height: 32),
+              const Spacer(),
 
-            // Test codes to copy
-            const Text('Try These Codes', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _CopyButton(code: '123456', onCopy: _copyToClipboard),
-                _CopyButton(code: '000000', onCopy: _copyToClipboard),
-                _CopyButton(code: '987654', onCopy: _copyToClipboard),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // Instructions
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('How It Works', style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(
-                      '1. Copy a 6-digit code to clipboard\n'
-                      '2. Tap the PIN field to focus it\n'
-                      '3. The code is detected and shown\n'
-                      '4. Tap "Paste" to auto-fill',
-                      style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
+              // Clear button
+              FilledButton.tonal(
+                onPressed: () {
+                  _pinController.clear();
+                  setState(() => _detectedCode = null);
+                },
+                child: const Text('Clear'),
               ),
-            ),
-
-            const Spacer(),
-
-            // Clear button
-            FilledButton.tonal(
-              onPressed: () {
-                _pinController.clear();
-                setState(() => _detectedCode = null);
-              },
-              child: const Text('Clear'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
