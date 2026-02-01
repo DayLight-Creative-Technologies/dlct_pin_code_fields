@@ -340,7 +340,8 @@ class _PinInputState extends State<PinInput>
   bool _isBlinking = false;
 
   // Convenience getters for underlying text controller and focus node
-  TextEditingController get _textController => effectiveController.textController;
+  TextEditingController get _textController =>
+      effectiveController.textController;
   FocusNode get _focusNode => effectiveController.focusNode;
 
   @override
@@ -709,47 +710,52 @@ class _PinInputState extends State<PinInput>
         },
         onLongPress: widget.onLongPress,
         child: _gestureBuilder.buildGestureDetector(
-        behavior: HitTestBehavior.translucent,
-        child: PinInputScope(
-          cells: cells,
-          obscureText: widget.obscureText,
-          obscuringCharacter: widget.obscuringCharacter,
-          hasFocus: _focusNode.hasFocus,
-          requestFocus: _requestFocusSafely,
-          child: Stack(
-            children: [
-              // User's custom UI
-              widget.builder(context, cells),
+          behavior: HitTestBehavior.translucent,
+          child: PinInputScope(
+            cells: cells,
+            obscureText: widget.obscureText,
+            obscuringCharacter: widget.obscuringCharacter,
+            hasFocus: _focusNode.hasFocus,
+            requestFocus: _requestFocusSafely,
+            child: Stack(
+              children: [
+                // User's custom UI
+                widget.builder(context, cells),
 
-              // Invisible input layer
-              Positioned.fill(
-                child: InvisibleTextField(
-                  editableTextKey: editableTextKey,
-                  controller: _textController,
-                  focusNode: _focusNode,
-                  length: widget.length,
-                  readOnly: widget.readOnly,
-                  selectionEnabled: selectionEnabled,
-                  selectionControls: selectionControls,
-                  contextMenuBuilder:
-                      selectionEnabled ? widget.contextMenuBuilder : null,
-                  keyboardType: widget.keyboardType,
-                  inputFormatters: widget.inputFormatters,
-                  textCapitalization: widget.textCapitalization,
-                  textInputAction: widget.textInputAction,
-                  onSubmitted: widget.onSubmitted,
-                  onEditingComplete: widget.onEditingComplete,
-                  onSelectionChanged: _handleSelectionChanged,
-                  keyboardAppearance: widget.keyboardAppearance,
-                  scrollPadding: widget.scrollPadding,
-                  autofillHints: widget.enableAutofill ? widget.autofillHints : null,
+                // Invisible input layer - positioned at top so auto-scroll
+                // shows the full PIN field above the keyboard
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: InvisibleTextField(
+                    editableTextKey: editableTextKey,
+                    controller: _textController,
+                    focusNode: _focusNode,
+                    length: widget.length,
+                    readOnly: widget.readOnly,
+                    selectionEnabled: selectionEnabled,
+                    selectionControls: selectionControls,
+                    contextMenuBuilder:
+                        selectionEnabled ? widget.contextMenuBuilder : null,
+                    keyboardType: widget.keyboardType,
+                    inputFormatters: widget.inputFormatters,
+                    textCapitalization: widget.textCapitalization,
+                    textInputAction: widget.textInputAction,
+                    onSubmitted: widget.onSubmitted,
+                    onEditingComplete: widget.onEditingComplete,
+                    onSelectionChanged: _handleSelectionChanged,
+                    keyboardAppearance: widget.keyboardAppearance,
+                    scrollPadding: widget.scrollPadding,
+                    autofillHints:
+                        widget.enableAutofill ? widget.autofillHints : null,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
     );
 
     // Wrap with AutofillGroup if autofill is enabled
