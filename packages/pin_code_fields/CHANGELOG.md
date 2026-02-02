@@ -4,6 +4,11 @@
 
 ### Features ✨
 
+- **Accessibility (Semantics)**: Full screen reader support with `semanticLabel` parameter
+  - Announces field purpose (e.g., "6-digit PIN code field")
+  - Provides hints about remaining digits
+  - Masks values when obscured for privacy
+  - Exposes enabled/focused states
 - **`cursorAlignment`**: Position custom cursor widgets within cells (e.g., underscore at bottom)
   ```dart
   MaterialPinTheme(
