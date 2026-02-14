@@ -517,12 +517,13 @@ class _PinInputState extends State<PinInput>
 
     try {
       final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+      if (!mounted) return;
       final text = clipboardData?.text;
 
       if (text == null || text.isEmpty) return;
 
       final isValid = _validateClipboardContent(text);
-      if (isValid && mounted) {
+      if (isValid) {
         widget.onClipboardFound?.call(text);
       }
     } catch (_) {
